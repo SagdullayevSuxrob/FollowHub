@@ -25,11 +25,11 @@ COPY . /var/www
 
 # Установка Composer
 RUN curl -sS https://getcomposer.org/installer | php && \
-    mv composer.phar /usr/local/bin/composer
+mv composer.phar /usr/local/bin/composer
 
 # Установка Node.js (20)
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs
+apt-get install -y nodejs
 
 # Устанавливаем зависимости Laravel
 RUN composer install
@@ -37,3 +37,5 @@ RUN composer install
 EXPOSE 8000
 
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+
+COPY php.ini /usr/local/etc/php/conf.d/uploads.ini

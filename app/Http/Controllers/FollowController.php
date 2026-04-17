@@ -114,7 +114,7 @@ class FollowController extends Controller
         return response()->json([
             'me' => $me->only(['name', 'username']),
             'user' => $user->only(['name', 'username']),
-            'status' => $me->getFollowStatus($user)
+            'status' => $me->getFollowStatus($user, $me)
         ]);
     }
 }

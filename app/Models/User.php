@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Http\Request;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -45,13 +44,15 @@ class User extends Authenticatable
     // Get the users that this user is following
     public function following()
     {
-        return $this->belongsToMany(User::class, 'follows', 'follower_id', 'following_id');
+        return $this->belongsToMany(User::class, 'follows', 'follower_id', 'following_id')
+            ->withPivot('status');
     }
 
     // Get the users that are following this user
     public function followers()
     {
-        return $this->belongsToMany(User::class, 'follows', 'following_id', 'follower_id');
+        return $this->belongsToMany(User::class, 'follows', 'following_id', 'follower_id')
+            ->withPivot('status');
     }
 
     // Get the users that are friends with this user
@@ -72,23 +73,33 @@ class User extends Authenticatable
     }
 
     // Get follow status.
-    public function getFollowStatus(User $User, Request $request)
+    public function getFollowStatus(User $user, $me)
     {
-        $me = $request->user();
-
         if (!$me) return 'You are not logged in'; // Agar foydalanuvchi tizimga kirmagan bo'lsa
-        if ($User->id === $me->id) return 'self';
+        if ($user->id === $me->id) return 'self';
 
-        $isFollowing = $me->following()->where('following_id', $User->id)->exists();
-        $isFollower = $me->followers()->where('follower_id', $User->id)->exists();
-        $isBlocked = $me->blockedUsers()->where('blocked_id', $User->id)->exists();
-        $isBlockedBy = $me->blockedBy()->where('blocker_id', $User->id)->exists();
+        if ($me->blockedUsers()->where('blocked_id', $user->id)->exists()) return "unblock";
+        if ($me->blockedBy()->where('blocker_id', $user->id)->exists()) return "blocked by user";
 
-        if ($isFollowing && $isFollower) return 'friend';
-        if ($isFollowing) return 'following';
-        if ($isFollower) return 'follow back';
-        if ($isBlocked) return 'unblock';
-        if ($isBlockedBy) return 'blocked by user';
+        $followRecord = $me->following()->withPivot('status')->where('following_id', $user->id)->first();
+        $followerRecord = $me->followers()->withPivot('status')->where('follower_id', $user->id)->first();
+
+        if ( $followerRecord && $followerRecord->pivot->status === 'accepted' &&
+            $followRecord && $followRecord->pivot->status === 'accepted' ) {
+            return "friend";
+        }
+
+        if ($followRecord && $followRecord->pivot->status === 'requested') {
+            return "requested";
+        }
+
+        if ($followRecord && $followRecord->pivot->status === 'accepted') {
+            return "following";
+        }
+
+        if ($followerRecord && $followerRecord->pivot->status === 'accepted') {
+            return "follow back";
+        }
 
         return 'follow';
     }

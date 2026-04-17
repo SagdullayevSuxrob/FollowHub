@@ -23,38 +23,46 @@ class UserController extends Controller
         ];
 
         // Get user suggestions
+
+        // 1. Bloklanganlarni yig'amiz
+        $blockedIds = $me->blockedUsers()->pluck('blocked_id')
+            ->merge($me->blockedBy()->pluck('blocker_id'))
+            ->unique();
+
+        $excludeIds = $me->following()->pluck('following_id')
+            ->merge($blockedIds)
+            ->push($me->id)
+            ->push($user->id)
+            ->unique();
+
+        // 2. Suggestion (Tavsiyalar) mantiqi
         if ($me->id === $user->id) {
-            $suggestions = User::where('id', '!=', $me->id)
-                ->where('id', '!=', $user->id)
-                ->whereNotIn('id', $user->following()->pluck('following_id'))
+            // O'z profilimda - Global tavsiyalar
+            $suggestions = User::whereNotIn('id', $excludeIds)
                 ->inRandomOrder()
                 ->limit(5)
-                ->get(['username', 'name', 'email']);
+                ->get(['id', 'username', 'name']);
         } else {
-            // 1. Avval profil egasining do'stlari orasidan (men kuzatmayotganlar)
+            // Boshqa profilida - Avval uning do'stlari (mutual), keyin global
             $relatedIds = $user->following()->pluck('following_id')
                 ->merge($user->followers()->pluck('follower_id'))
                 ->unique();
 
             $suggestions = User::whereIn('id', $relatedIds)
-                ->where('id', '!=', $me->id)
-                ->where('id', '!=', $user->id)
-                ->whereNotIn('id', $me->following()->pluck('following_id'))
+                ->whereNotIn('id', $excludeIds)
                 ->inRandomOrder()
                 ->limit(5)
                 ->get(['id', 'name', 'username']);
 
-            // 2. Agar 5 tadan kam bo'lsa, qolganini globaldan to'ldiramiz
+            if ($suggestions->count() < 5) {
+                $globalSuggestions = User::whereNotIn('id', $excludeIds)
+                    ->whereNotIn('id', $suggestions->pluck('id'))
+                    ->inRandomOrder()
+                    ->limit(5 - $suggestions->count())
+                    ->get(['id', 'name', 'username']);
 
-            $globalSuggestions = User::where('id', '!=', $me->id)
-                ->where('id', '!=', $user->id)
-                ->whereNotIn('id', $me->following()->pluck('following_id'))
-                ->whereNotIn('id', $suggestions->pluck('id')) // Allaqachon tanlanganlarni takrorlamaslik uchun
-                ->inRandomOrder()
-                ->limit(5 - $suggestions->count())
-                ->get(['id', 'name', 'username']);
-
-            $suggestions = $suggestions->merge($globalSuggestions);
+                $suggestions = $suggestions->merge($globalSuggestions);
+            }
         }
 
         // Bu foydalanuvchi meni bloklagan
@@ -83,7 +91,7 @@ class UserController extends Controller
         return response()->json([
             "User" => $user->only(['username', 'name', 'email']),
             'statistics' => $stats,
-            "status" => $me->getFollowStatus($user),
+            "status" => $me->getFollowStatus($user, $me),
             "suggestions" => $suggestions
         ]);
     }

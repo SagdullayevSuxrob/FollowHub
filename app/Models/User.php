@@ -84,8 +84,10 @@ class User extends Authenticatable
         $followRecord = $me->following()->withPivot('status')->where('following_id', $user->id)->first();
         $followerRecord = $me->followers()->withPivot('status')->where('follower_id', $user->id)->first();
 
-        if ( $followerRecord && $followerRecord->pivot->status === 'accepted' &&
-            $followRecord && $followRecord->pivot->status === 'accepted' ) {
+        if (
+            $followerRecord && $followerRecord->pivot->status === 'accepted' &&
+            $followRecord && $followRecord->pivot->status === 'accepted'
+        ) {
             return "friend";
         }
 
@@ -117,6 +119,16 @@ class User extends Authenticatable
         return false;
     }
 
+    public function blockedUsers()
+    {
+        return $this->belongsToMany(User::class, 'blocks', 'blocker_id', 'blocked_id');
+    }
+
+    public function blockedBy()
+    {
+        return $this->belongsToMany(User::class, 'blocks', 'blocked_id', 'blocker_id');
+    }
+
     public function Blocked(User $me)
     {
         if ($this->blockedUsers()->where('blocked_id', $me->id)->exists()) {
@@ -133,16 +145,6 @@ class User extends Authenticatable
         return false;
     }
 
-    // Check if the user is blocked
-    public function blockedUsers()
-    {
-        return $this->belongsToMany(User::class, 'blocks', 'blocker_id', 'blocked_id');
-    }
-
-    public function blockedBy()
-    {
-        return $this->belongsToMany(User::class, 'blocks', 'blocked_id', 'blocker_id');
-    }
     public function block($userId)
     {
         return $this->blockedUsers()->attach([$userId]);
@@ -156,5 +158,20 @@ class User extends Authenticatable
     public function posts()
     {
         return $this->hasMany(Post::class);
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(Comment::class);
+    }
+
+    public function views()
+    {
+        return $this->hasMany(PostView::class);
+    }
+
+    public function like()
+    {
+        return $this->hasMany(Like::class);
     }
 }

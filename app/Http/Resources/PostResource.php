@@ -15,8 +15,7 @@ class PostResource extends JsonResource
         return [
             'user' => [
                 'name' => $this->user->name ?? "Noma'lum foydalanuvchi",
-                'username' => $this->user ? '@' . $this->user->username : null,
-                'full_display' => $this->user ? $this->user->name . '[@' . $this->user->username . ']' : null,
+                'username' => $this->user ? $this->user->username : null,
             ],
 
             "post" => [

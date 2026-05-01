@@ -40,7 +40,7 @@ class Post extends Model
     }
 
     // blok payti postlarni yashirish
-    protected static function booteed()
+    protected static function booted()
     {
         static::addGlobalScope('hide_blocked_posts', function ($builder) {
             if (auth()->check()) {
